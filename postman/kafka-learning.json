@@ -1,0 +1,351 @@
+{
+  "info": {
+    "name": "Kafka Learning Project",
+    "description": "Postman collection for learning Kafka with NestJS.\nFollow the exercises in order (Phase 1 → 6).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000"
+    }
+  ],
+  "item": [
+    {
+      "name": "Phase 1 - Producer Basics",
+      "description": "Learn to send messages to Kafka",
+      "item": [
+        {
+          "name": "1.1 Create Order (Fire-and-Forget)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders",
+              "host": ["{{baseUrl}}"],
+              "path": ["orders"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerId\": \"customer-001\",\n  \"items\": [\n    {\n      \"productId\": \"prod-1\",\n      \"name\": \"Mechanical Keyboard\",\n      \"quantity\": 1,\n      \"price\": 150\n    },\n    {\n      \"productId\": \"prod-2\",\n      \"name\": \"Mouse Pad\",\n      \"quantity\": 2,\n      \"price\": 25\n    }\n  ],\n  \"totalAmount\": 200\n}"
+            },
+            "description": "Exercise 1.1: Send an order event to Kafka using emit() (fire-and-forget).\n\nAfter sending:\n1. Check notification-service logs for the received event\n2. Open Kafka UI at http://localhost:8080 to see the message in 'order.created' topic"
+          }
+        },
+        {
+          "name": "1.2a Key Strategy: None (Round Robin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders/with-key-strategy?strategy=none",
+              "host": ["{{baseUrl}}"],
+              "path": ["orders", "with-key-strategy"],
+              "query": [
+                {
+                  "key": "strategy",
+                  "value": "none"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerId\": \"customer-001\",\n  \"items\": [\n    {\n      \"productId\": \"prod-1\",\n      \"name\": \"Laptop\",\n      \"quantity\": 1,\n      \"price\": 999\n    }\n  ],\n  \"totalAmount\": 999\n}"
+            },
+            "description": "Exercise 1.2: Send with key=null → messages distribute round-robin across partitions.\n\nSend this request 6+ times, then check Kafka UI to see messages spread across all 3 partitions."
+          }
+        },
+        {
+          "name": "1.2b Key Strategy: Order ID",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders/with-key-strategy?strategy=orderId",
+              "host": ["{{baseUrl}}"],
+              "path": ["orders", "with-key-strategy"],
+              "query": [
+                {
+                  "key": "strategy",
+                  "value": "orderId"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerId\": \"customer-002\",\n  \"items\": [\n    {\n      \"productId\": \"prod-3\",\n      \"name\": \"Monitor\",\n      \"quantity\": 1,\n      \"price\": 500\n    }\n  ],\n  \"totalAmount\": 500\n}"
+            },
+            "description": "Exercise 1.2: Send with key=orderId → each order goes to a specific partition based on hash(orderId)."
+          }
+        },
+        {
+          "name": "1.2c Key Strategy: Customer ID",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders/with-key-strategy?strategy=customerId",
+              "host": ["{{baseUrl}}"],
+              "path": ["orders", "with-key-strategy"],
+              "query": [
+                {
+                  "key": "strategy",
+                  "value": "customerId"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerId\": \"customer-001\",\n  \"items\": [\n    {\n      \"productId\": \"prod-4\",\n      \"name\": \"Headphones\",\n      \"quantity\": 1,\n      \"price\": 80\n    }\n  ],\n  \"totalAmount\": 80\n}"
+            },
+            "description": "Exercise 1.2: Send with key=customerId → ALL orders from same customer go to SAME partition.\n\nSend multiple orders with customer-001, then with customer-002.\nCheck Kafka UI: customer-001 orders should all be in the same partition."
+          }
+        },
+        {
+          "name": "Get All Orders",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/orders",
+              "host": ["{{baseUrl}}"],
+              "path": ["orders"]
+            },
+            "description": "View all orders stored in memory (order-service)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Phase 2 - Consumer Basics",
+      "description": "Learn to receive and process messages from Kafka",
+      "item": [
+        {
+          "name": "2.1 Create Order → Notification Consumer",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders",
+              "host": ["{{baseUrl}}"],
+              "path": ["orders"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerId\": \"customer-003\",\n  \"items\": [\n    {\n      \"productId\": \"prod-5\",\n      \"name\": \"Webcam\",\n      \"quantity\": 1,\n      \"price\": 120\n    }\n  ],\n  \"totalAmount\": 120\n}"
+            },
+            "description": "Exercise 2.1: After implementing @EventPattern in notification-service.\n\nSend this request, then check notification-service terminal logs.\nYou should see the order data logged with topic, partition, and offset info."
+          }
+        },
+        {
+          "name": "2.2 Create Order with Payment (Request-Response)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders/with-payment",
+              "host": ["{{baseUrl}}"],
+              "path": ["orders", "with-payment"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerId\": \"customer-004\",\n  \"items\": [\n    {\n      \"productId\": \"prod-6\",\n      \"name\": \"Desk Lamp\",\n      \"quantity\": 1,\n      \"price\": 45\n    }\n  ],\n  \"totalAmount\": 45\n}"
+            },
+            "description": "Exercise 2.2: After implementing @MessagePattern in payment-service AND processPayment() in order.producer.ts.\n\nThis sends an order, waits for payment-service to process it via Kafka, and returns the result.\nYou should see both the order AND paymentResult in the response."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Phase 3 - Consumer Groups",
+      "description": "Learn how consumer groups work",
+      "item": [
+        {
+          "name": "3.1 Send Order → Multiple Groups Receive",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders",
+              "host": ["{{baseUrl}}"],
+              "path": ["orders"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerId\": \"customer-005\",\n  \"items\": [\n    {\n      \"productId\": \"prod-7\",\n      \"name\": \"USB Hub\",\n      \"quantity\": 3,\n      \"price\": 30\n    }\n  ],\n  \"totalAmount\": 90\n}"
+            },
+            "description": "Exercise 3.1: With BOTH notification-service AND analytics-service running.\n\nSend this request and check BOTH service logs.\nBoth should receive the same order because they use DIFFERENT consumer groups.\n\n→ notification-group gets ALL messages\n→ analytics-group gets ALL messages (independently)"
+          }
+        },
+        {
+          "name": "3.2 Bulk Orders (10x) → Observe Partition Distribution",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders/with-key-strategy?strategy=none",
+              "host": ["{{baseUrl}}"],
+              "path": ["orders", "with-key-strategy"],
+              "query": [
+                {
+                  "key": "strategy",
+                  "value": "none"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerId\": \"customer-bulk\",\n  \"items\": [\n    {\n      \"productId\": \"prod-bulk\",\n      \"name\": \"Bulk Item\",\n      \"quantity\": 1,\n      \"price\": 10\n    }\n  ],\n  \"totalAmount\": 10\n}"
+            },
+            "description": "Exercise 3.2: Run 2 instances of analytics-service (same group).\n\nSend this request 10 times rapidly.\nObserve how messages are distributed across the 2 instances.\nEach instance should handle roughly half the messages.\n\nTIP: Use Postman Runner to send 10 iterations automatically."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Phase 4 - Offset Management",
+      "description": "Learn about offset commits and delivery semantics",
+      "item": [
+        {
+          "name": "4.1 Send Order → Manual Commit",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders",
+              "host": ["{{baseUrl}}"],
+              "path": ["orders"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerId\": \"customer-offset\",\n  \"items\": [\n    {\n      \"productId\": \"prod-offset\",\n      \"name\": \"Offset Test Item\",\n      \"quantity\": 1,\n      \"price\": 50\n    }\n  ],\n  \"totalAmount\": 50\n}"
+            },
+            "description": "Exercise 4.1: After implementing manual commit in notification-service.\n\nSteps to test:\n1. Send this order\n2. Check notification-service log for commit confirmation\n3. Kill notification-service (Ctrl+C) BEFORE it commits\n4. Restart it → the message should be re-delivered!\n5. Let it process and commit → restart again → message NOT re-delivered"
+          }
+        },
+        {
+          "name": "4.2 Send Order → Idempotency Test",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders/with-payment",
+              "host": ["{{baseUrl}}"],
+              "path": ["orders", "with-payment"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerId\": \"customer-idem\",\n  \"items\": [\n    {\n      \"productId\": \"prod-idem\",\n      \"name\": \"Idempotency Test\",\n      \"quantity\": 1,\n      \"price\": 75\n    }\n  ],\n  \"totalAmount\": 75\n}"
+            },
+            "description": "Exercise 4.2: After implementing idempotency check in payment-service.\n\nSend this same request twice with same data.\nObserve payment-service logs:\n- First time: processes normally\n- If duplicate detected: logs warning and returns cached result"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Phase 5 - Error Handling",
+      "description": "Learn about DLQ and retry patterns",
+      "item": [
+        {
+          "name": "5.1 Send Order → Trigger Error → DLQ",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders",
+              "host": ["{{baseUrl}}"],
+              "path": ["orders"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerId\": \"\",\n  \"items\": [],\n  \"totalAmount\": -1\n}"
+            },
+            "description": "Exercise 5.1: Send a bad order (empty customerId, no items, negative amount).\n\nAfter implementing error handling in notification-service:\n1. Consumer should catch the validation error\n2. Retry 3 times\n3. Send to DLQ topic 'orders.dlq'\n4. Check Kafka UI for message in orders.dlq topic"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Phase 6 - Saga Pattern",
+      "description": "Learn event-driven orchestration",
+      "item": [
+        {
+          "name": "6.1 Full Order Saga Flow",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders/with-payment",
+              "host": ["{{baseUrl}}"],
+              "path": ["orders", "with-payment"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerId\": \"customer-saga\",\n  \"items\": [\n    {\n      \"productId\": \"prod-saga\",\n      \"name\": \"Saga Test Product\",\n      \"quantity\": 1,\n      \"price\": 299\n    }\n  ],\n  \"totalAmount\": 299\n}"
+            },
+            "description": "Exercise 6.1: Full saga flow.\n\nExpected flow:\n1. POST order → order-service emits 'order.created'\n2. payment-service processes payment\n3. payment-service emits 'payment.completed' or 'payment.failed'\n4. order-service updates order status\n5. notification-service sends notification for each event\n\nCheck all service logs to trace the complete flow!"
+          }
+        }
+      ]
+    }
+  ]
+}
